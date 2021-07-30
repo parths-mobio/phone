@@ -1,17 +1,17 @@
 const { validationResult } = require("express-validator");
-const Category = require("../models/categories");
+const Keyword = require("../models/keywords");
 
-/* for List Category */
-exports.listCategory = async (req, res, next) => {
+/* for List Keyword */
+exports.listKeyword = async (req, res, next) => {
   try {
-    await Category.find()
+    await Keyword.find()
       .populate("created_by", "first_name")
       .exec((err, cat) => {
         if (err || !cat) {
           return res.status(400).json({
             status: "Error",
             statusCode: 400,
-            message: "No Category Found",
+            message: "No Keyword Found",
           });
         }
 
@@ -31,8 +31,8 @@ exports.listCategory = async (req, res, next) => {
   }
 };
 
-/* for Create Category */
-exports.createCategory = async (req, res, next) => {
+/* for Create Keyword */
+exports.createKeyword = async (req, res, next) => {
   try {
     const errors = validationResult(req);
 
@@ -43,20 +43,18 @@ exports.createCategory = async (req, res, next) => {
     }
 
     let user_id = req.userId;
-    const category = new Category({
+    const keyword = new Keyword({
       name: req.body.name,
-      category_color: req.body.category_color,
       key: req.body.key,
+      value: req.body.value,
       keywords: req.body.keywords,
-      url: req.body.url,
       status: req.body.status,
-      tag_of_day: req.body.tag_of_day,
       start_date: req.body.start_date,
       end_date: req.body.end_date,
       created_by: user_id,
     });
 
-    await category.save((err, detail) => {
+    await keyword.save((err, detail) => {
       if (err) {
         //If any error generated when saving the data in DB
         return res.status(400).json({
@@ -83,20 +81,20 @@ exports.createCategory = async (req, res, next) => {
   }
 };
 
-/* for Update Category */
-exports.updateCategory = async (req, res, next) => {
+/* for Update Keyword */
+exports.updateKeyword = async (req, res, next) => {
   try { 
     const set = req.query.id;
     let user_id = req.userId;
     req.body.updated_by = user_id;
     const errors = validationResult(req);
 
-    const Cat = await Category.findOne({ _id: set });
+    const Cat = await Keyword.findOne({ _id: set });
     if (!Cat) {
       return res.status(400).send({
         status: "Error",
         statusCode: 400,
-        message: "No Category found",
+        message: "No Keyword found",
       });
     }
 
@@ -106,7 +104,7 @@ exports.updateCategory = async (req, res, next) => {
       });
     }
   
-    Category.findByIdAndUpdate(
+    Keyword.findByIdAndUpdate(
       { _id: set },
       { $set: req.body },
       { new: true, useFindAndModify: false },
@@ -115,7 +113,7 @@ exports.updateCategory = async (req, res, next) => {
           return res.status(400).json({
             status: "Error",
             statusCode: 400,
-            message: "You are not authorized to update this Category",
+            message: "You are not authorized to update this Keyword",
           });
         }
   
@@ -136,16 +134,16 @@ exports.updateCategory = async (req, res, next) => {
   }
 };
 
-/* for get Category By Id */
+/* for get Keyword By Id */
 exports.getById = async (req, res, next) => {
   try {
     const cat = await req.query.id;
-    await Category.findById(cat).exec((err, cat) => {
+    await Keyword.findById(cat).exec((err, cat) => {
       if (err) {
         return res.status(400).json({
           status: "Error",
           statusCode: 400,
-          message: "No category Found",
+          message: "No keyword Found",
         });
       }
       res.json({
@@ -164,24 +162,25 @@ exports.getById = async (req, res, next) => {
   }
 };
 
-/* for Delete Category */
-exports.deleteCategory = async (req, res, next) => {
+/* for Delete Keyword */
+exports.deleteKeyword = async (req, res, next) => {
   try {
     const cat = await req.query.id;
-    const Cat = await Category.findOne({ _id: cat });
+
+    const Cat = await Keyword.findOne({ _id: cat });
     if (!Cat) {
       return res.status(400).send({
         status: "Error",
         statusCode: 400,
-        message: "No category found",
+        message: "No Keyword found",
       });
     }
-    await Category.findById(cat).remove((err, deletedcat) => {
+    await Keyword.findById(cat).remove((err, deletedcat) => {
       if (err) {
         return res.status(400).json({
           status: "Error",
           statusCode: 400,
-          message: "Failed to delete the Category",
+          message: "Failed to delete the Keyword",
         });
       }
       res.json({

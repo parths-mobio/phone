@@ -21,6 +21,8 @@ mongoose
 
 var authRouter = require("./routes/authRoutes");
 var categoryRouter = require("./routes/categoryRoutes");
+var keywordRouter = require("./routes/keywordRoutes");
+
 
 
 
@@ -29,6 +31,7 @@ app.use(cors());
 
 app.use("/api", authRouter);
 app.use("/api", categoryRouter);
+app.use("/api", keywordRouter);
 
 // listen to the server at 3000 port
 app.listen(port, () => {

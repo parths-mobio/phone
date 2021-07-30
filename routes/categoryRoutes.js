@@ -8,20 +8,39 @@ const categoryController = require("../controllers/categoriesController");
 
 router.post(
   "/category/create",
+  [
+    check("name", {
+      Status: "Error",
+      Statuscode: 400,
+      message: "Please Enter Name",
+    })
+      .notEmpty()
+      .isLength({ min: 2 }),
+    check("category_color", {
+      Status: "Error",
+      Statuscode: 400,
+      message: "Please Enter Color",
+    }).notEmpty(),
+    check("url", {
+      Status: "Error",
+      Statuscode: 400,
+      message: "Please Enter Proper URL Format",
+    }).isURL({ protocols: ["https"] }),
+  ],
   authController.isSignedIn,
   categoryController.createCategory
 );
 
 router.put(
-    "/category/update",
-    authController.isSignedIn,
-    categoryController.updateCategory
+  "/category/update",
+  authController.isSignedIn,
+  categoryController.updateCategory
 );
 
 router.get(
-    "/category/listregion",
-    authController.isSignedIn,
-    categoryController.listCategory
+  "/category/list",
+  authController.isSignedIn,
+  categoryController.listCategory
 );
 
 router.delete(
@@ -35,6 +54,5 @@ router.get(
   authController.isSignedIn,
   categoryController.getById
 );
-
 
 module.exports = router;
