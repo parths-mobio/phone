@@ -1,4 +1,4 @@
-const { validationResult } = require("express-validator");
+const { Validator } = require("node-input-validator");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/users");
@@ -7,97 +7,129 @@ const twilioClient = require("twilio")(accountID, authToken);
 
 // This API is for me and parth only
 exports.signup = async (req, res, next) => {
-  const user = new User(req.body);
-  const errors = validationResult(req);
-
-  if (!errors.isEmpty()) {
-    return res.status(422).json({
-      error: errors.array()[0].msg,
+  try {
+    let valid = new Validator(req.body, {
+      first_name: "required",
+      last_name: "required",
+      phone_number: "required|minLength:10",
+      password: "required|minLength:8",
     });
-  }
-
-  bcrypt.genSalt(10, (err, salt) => {
-    if (err) throw err;
-    bcrypt.hash(user.password, salt, (err, hash) => {
+    let matched = await valid.check();
+    if (!matched) {
+      return res.status(400).send({
+        status: "Error",
+        statusCode: 400,
+        message: valid.errors,
+      });
+    }
+    const user = new User(req.body);
+    bcrypt.genSalt(10, (err, salt) => {
       if (err) throw err;
-      user.password = hash;
-      user.save((err, user) => {
-        console.log(err);
-        if (err) {
-          return res.status(400).json({
-            Status: "Error",
-            statusCode: 400,
-            err: "Not able to save User",
-          });
-        }
-        next();
+      bcrypt.hash(user.password, salt, (err, hash) => {
+        if (err) throw err;
+        user.password = hash;
+        user.save((err, user) => {
+          if (err) {
+            return res.status(400).json({
+              Status: "Error",
+              statusCode: 400,
+              err: "Not able to save User",
+            });
+          }
+          next();
+        });
       });
     });
-  });
+  } catch (errors) {
+    return res.status(500).json({
+      status: "Error",
+      statusCode: 500,
+      message: errors.message,
+    });
+  }
 };
 
 exports.sendOtp = async (req, res) => {
-  if (req.body.phone_number) {
-    twilioClient.verify
-      .services(serviceID)
-      .verifications.create({
-        to: `+${req.body.phone_number}`,
-        channel: "sms",
-      })
-      .then((data) => {
-        res.status(200).send({
-          message: "Verification is sent!!",
-          phonenumber: req.body.phone_number,
-          data,
+  try {
+    if (req.body.phone_number) {
+      twilioClient.verify
+        .services(serviceID)
+        .verifications.create({
+          to: `+${req.body.phone_number}`,
+          channel: "sms",
+        })
+        .then((data) => {
+          res.status(200).send({
+            message: "Verification is sent!!",
+            phonenumber: req.body.phone_number,
+            data,
+          });
         });
+    } else {
+      res.status(400).send({
+        message: "Wrong phone number :(",
+        phonenumber: req.body.phone_number,
       });
-  } else {
-    res.status(400).send({
-      message: "Wrong phone number :(",
-      phonenumber: req.body.phone_number,
+    }
+  } catch (errors) {
+    return res.status(500).json({
+      status: "Error",
+      statusCode: 500,
+      message: errors.message,
     });
   }
 };
 
 exports.verifyOtp = async (req, res) => {
-  if (req.query.phone_number && req.query.code.length === 6) {
-    twilioClient.verify
-      .services(serviceID)
-      .verificationChecks.create({
-        to: `+${req.query.phone_number}`,
-        code: req.query.code,
-      })
-      .then(async (data) => {
-        if (data.status === "approved") {
-          console.log(data);
-          const user_details = await User.findOne({
-            phone_number: req.query.phone_number,
-          });
+  try {
+    if (req.query.phone_number && req.query.code.length === 6) {
+      twilioClient.verify
+        .services(serviceID)
+        .verificationChecks.create({
+          to: `+${req.query.phone_number}`,
+          code: req.query.code,
+        })
+        .then(async (data) => {
+          if (data.status === "approved") {
+            const user_details = await User.findOne({
+              phone_number: req.query.phone_number,
+            });
 
-          await user_details.updateOne({
-            is_verified: true,
-          });
-          const token = jwt.sign({ _id: user_details._id }, process.env.JWT_SECRET, {
-            expiresIn: "24h",
-          });
-          res.status(200).send({
-            message: "User is Verified!!",
-            token,
-            data,
-          });
-        } else {
-          res.status(400).send({
-            message: "Wrong phone number or code :(",
-            phonenumber: req.query.phone_number,
-            data,
-          });
-        }
+            await user_details.updateOne({
+              is_verified: true,
+            });
+            const token = jwt.sign(
+              { _id: user_details._id },
+              process.env.JWT_SECRET,
+              {
+                expiresIn: "24h",
+              }
+            );
+            res.status(200).send({
+              message: "User is Verified!!",
+              token,
+              data,
+            });
+          } else {
+            res.status(400).send({
+              message: "Wrong phone number or code :(",
+              phonenumber: req.query.phone_number,
+              data,
+            });
+          }
+        });
+    } else {
+      res.status(400).send({
+        message: "Wrong phone number or code :(",
+        phonenumber: req.query.phone_number,
+        data,
       });
-  } else {
-    res.status(400).send({
-      message: "Wrong phone number or code :(",
-      phonenumber: req.query.phone_number,
-      data,
+    }
+  } catch (errors) {
+    return res.status(500).json({
+      status: "Error",
+      statusCode: 500,
+      message: errors.message,
     });
   }
 };
@@ -105,12 +137,17 @@ exports.verifyOtp = async (req, res) => {
 //Sign In api
 exports.signin = async (req, res) => {
   try {
-    const errors = validationResult(req);
     const { phone_number, password } = await req.body;
-
-    if (!errors.isEmpty()) {
-      return res.status(422).json({
-        error: errors.array()[0].msg,
+    let valid = new Validator(req.body, {
+      phone_number: "required|minLength:10",
+      password: "required|minLength:8",
+    });
+    let matched = await valid.check();
+    if (!matched) {
+      return res.status(400).send({
+        status: "Error",
+        statusCode: 400,
+        message: valid.errors,
       });
     }
 
@@ -184,7 +221,6 @@ exports.isSignedIn = async (req, res, next) => {
       });
     }
     req.userId = decoded._id;
-
     next();
   });
 };

@@ -1,5 +1,5 @@
-const { validationResult } = require("express-validator");
 const Keyword = require("../models/keywords");
+const { Validator } = require("node-input-validator");
 
 /* for List Keyword */
 exports.listKeyword = async (req, res, next) => {
@@ -34,11 +34,15 @@ exports.listKeyword = async (req, res, next) => {
 /* for Create Keyword */
 exports.createKeyword = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
-
-    if (!errors.isEmpty()) {
-      return res.status(422).json({
-        error: errors.array()[0].msg,
+    let valid = new Validator(req.body, {
+      name: "required",
+    });
+    let matched = await valid.check();
+    if (!matched) {
+      return res.status(400).send({
+        status: "Error",
+        statusCode: 400,
+        message: valid.errors,
       });
     }
 
@@ -83,12 +87,11 @@ exports.createKeyword = async (req, res, next) => {
 
 /* for Update Keyword */
 exports.updateKeyword = async (req, res, next) => {
-  try { 
+  try {
     const set = req.query.id;
     let user_id = req.userId;
     req.body.updated_by = user_id;
-    const errors = validationResult(req);
-
+   
     const Cat = await Keyword.findOne({ _id: set });
     if (!Cat) {
       return res.status(400).send({
@@ -98,12 +101,7 @@ exports.updateKeyword = async (req, res, next) => {
       });
     }
 
-    if (!errors.isEmpty()) {
-      return res.status(422).json({
-        error: errors.array()[0].msg,
-      });
-    }
-  
+   
     Keyword.findByIdAndUpdate(
       { _id: set },
       { $set: req.body },
@@ -116,7 +114,7 @@ exports.updateKeyword = async (req, res, next) => {
             message: "You are not authorized to update this Keyword",
           });
         }
-  
+
         res.json({
           status: "Success",
           statusCode: 200,
