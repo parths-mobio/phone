@@ -1,5 +1,5 @@
-const { validationResult } = require("express-validator");
 const Category = require("../models/categories");
+const { Validator } = require("node-input-validator");
 
 /* for List Category */
 exports.listCategory = async (req, res, next) => {
@@ -34,11 +34,29 @@ exports.listCategory = async (req, res, next) => {
 /* for Create Category */
 exports.createCategory = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
+    let valid = new Validator(req.body, {
+      name: "required",
+      category_color: "required",
+    });
+    var expression =
+      /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    var regex = new RegExp(expression);
 
-    if (!errors.isEmpty()) {
-      return res.status(422).json({
-        error: errors.array()[0].msg,
+    if (req.body.url !== undefined) {
+      if (!req.body.url.match(regex)) {
+        return res.status(400).json({
+          status: "Error",
+          statusCode: 400,
+          message: "Please Enter Proper URL Format",
+        });
+      }
+    }
+    let matched = await valid.check();
+    if (!matched) {
+      return res.status(400).send({
+        status: "Error",
+        statusCode: 400,
+        message: valid.errors,
       });
     }
 
@@ -85,11 +103,10 @@ exports.createCategory = async (req, res, next) => {
 
 /* for Update Category */
 exports.updateCategory = async (req, res, next) => {
-  try { 
+  try {
     const set = req.query.id;
     let user_id = req.userId;
     req.body.updated_by = user_id;
-    const errors = validationResult(req);
 
     const Cat = await Category.findOne({ _id: set });
     if (!Cat) {
@@ -99,13 +116,20 @@ exports.updateCategory = async (req, res, next) => {
         message: "No Category found",
       });
     }
+    var expression =
+      /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    var regex = new RegExp(expression);
 
-    if (!errors.isEmpty()) {
-      return res.status(422).json({
-        error: errors.array()[0].msg,
-      });
+    if (req.body.url !== undefined) {
+      if (!req.body.url.match(regex)) {
+        return res.status(400).json({
+          status: "Error",
+          statusCode: 400,
+          message: "Please Enter Proper URL Format",
+        });
+      }
     }
-  
+
     Category.findByIdAndUpdate(
       { _id: set },
       { $set: req.body },
@@ -118,7 +142,7 @@ exports.updateCategory = async (req, res, next) => {
             message: "You are not authorized to update this Category",
           });
         }
-  
+
         res.json({
           status: "Success",
           statusCode: 200,
