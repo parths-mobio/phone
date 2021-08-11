@@ -4,15 +4,15 @@ const { check } = require("express-validator");
 const authController = require("../controllers/authController");
 
 router.post(
-  "/auth/signup",
+  "/signup",
   authController.signup,
   authController.sendOtp
 );
 
-router.get("/auth/verifyotp", authController.verifyOtp);
+router.get("/verifyotp", authController.verifyOtp);
 
 router.post(
-  "/auth/signin",
+  "/signin",
   authController.signin
 );
 

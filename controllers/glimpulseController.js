@@ -21,16 +21,30 @@ exports.createGlimpulse = async (req, res, next) => {
   try {
     let user_id = req.userId;
     req.body.created_by = user_id;
-    let created_glim = await glimpulseServices.creatNewGlimpulse(req.body);
-    if (created_glim) {
+    const start_date = new Date(req.body.start_date);
+    const end_date = new Date(req.body.end_date);
+
+    let data = await glimpulseServices.getAllGlimpulseByDate(
+      start_date,
+      end_date
+    );
+
+    if (!data[0].title == undefined) {
       return res
-        .status(200)
-        .json(
-          successResponse(constants.GLIMPULSE_CREATE_SUCCESS, created_glim)
-        );
+        .status(400)
+        .json(errorResponse(constants.GLIMPULSE_DATE_ALREADY_EXIST));
+    } else {
+      let created_glim = await glimpulseServices.creatNewGlimpulse(req.body);
+      if (created_glim) {
+        return res
+          .status(200)
+          .json(
+            successResponse(constants.GLIMPULSE_CREATE_SUCCESS, created_glim)
+          );
+      }
     }
   } catch (errors) {
-    res.status(500).json(errorResponse(err.message));
+    res.status(500).json(errorResponse(errors.message));
   }
 };
 

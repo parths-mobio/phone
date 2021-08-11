@@ -8,33 +8,33 @@ const categorySchema  = require("../common/validations");
 
 
 router.post(
-  "/category/create",
+  "/",
   authController.isSignedIn,
   validate(checkSchema(categorySchema.categorySchema)),
   categoryController.createCategory
 );
 
 router.put(
-  "/category/update",
+  "/",
   authController.isSignedIn,
   validate(checkSchema(categorySchema.updatecategorySchema)),
   categoryController.updateCategory
 );
 
 router.get(
-  "/category/list",
+  "/",
   authController.isSignedIn,
   categoryController.listCategory
 );
 
 router.delete(
-  "/category/delete",
+  "/",
   authController.isSignedIn,
   categoryController.deleteCategory
 );
 
 router.get(
-  "/category/getCategoryById",
+  "/getCategoryById",
   authController.isSignedIn,
   categoryController.getById
 );

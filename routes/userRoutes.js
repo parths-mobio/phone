@@ -3,6 +3,10 @@ const router = express.Router();
 const multer = require("multer");
 const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
+const { checkSchema } = require("express-validator");
+const { validate } = require("../middleware/validate.middleware");
+const userSchema  = require("../common/validations");
+
 
 var storage = multer.diskStorage({
   destination: "./public/uploads/",
@@ -16,68 +20,76 @@ var upload = multer({
 }).single("image_id", 5);
 
 router.post(
-  "/user/create",
+  "/",
   upload,
   authController.isSignedIn,
+  validate(checkSchema(userSchema.userSchema)),
   userController.createUser
 );
 
 router.put(
-  "/user/update",
+  "/",
   upload,
   authController.isSignedIn,
   userController.updateUser
 );
 
-router.get("/user/list", authController.isSignedIn, userController.list);
+router.get("/", authController.isSignedIn, userController.list);
 
 router.delete(
-  "/user/delete",
+  "/",
   authController.isSignedIn,
   userController.deleteUser
 );
 
 router.get(
-  "/user/getUserById",
+  "/getUserById",
   authController.isSignedIn,
   userController.getById
 );
 
 router.get(
-  "/userprofile/list",
+  "/userprofile",
   authController.isSignedIn,
   userController.listProfile
 );
 
 router.put(
-  "/user/updateProfile",
+  "/updateProfile",
   upload,
   authController.isSignedIn,
   userController.updateUserProfile
 );
 
 router.post(
-  "/user/updatePhone",
+  "/updatePhone",
   authController.isSignedIn,
   authController.sendOtp
 );
 
 router.get(
-  "/user/verifyOtp",
+  "/verifyOtp",
   authController.isSignedIn,
   userController.verifyOtp
 );
 
 router.post(
-  "/user/updateEmail",
+  "/updateEmail",
   authController.isSignedIn,
   userController.sendOtpEmail
 );
 
 router.post(
-  "/user/verifyEmail",
+  "/verifyEmail",
   authController.isSignedIn,
   userController.verifyOtpEmail
 );
+
+router.put(
+  "/changepassword",
+  authController.isSignedIn,
+  validate(checkSchema(userSchema.changepasswordSchema)),
+  userController.changepassword
+)
 
 module.exports = router;

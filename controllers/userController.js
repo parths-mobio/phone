@@ -1,71 +1,18 @@
-const { validationResult } = require("express-validator");
-const { Validator } = require("node-input-validator");
+const userService = require("../services/userServices");
+const { errorResponse, successResponse } = require("../common/response");
+const constants = require("../common/constant");
 const User = require("../models/users");
 const bcrypt = require("bcryptjs");
 const { accountID, authToken, serviceID } = require("../config");
 const twilioClient = require("twilio")(accountID, authToken);
-/* for List User Profile */
-exports.listProfile = async (req, res, next) => {
-  try {
-    let user_id = req.userId;
-    await User.find({ _id: user_id })
-      .select("first_name")
-      .select("last_name")
-      .select("phone_number")
-      .select("image_id")
-      .select("email")
-      .exec((err, cat) => {
-        if (err || !cat) {
-          return res.status(400).json({
-            status: "Error",
-            statusCode: 400,
-            message: "No User Found",
-          });
-        }
-
-        res.json({
-          status: "Success",
-          statusCode: 200,
-          message: "Successfully View",
-          Data: cat,
-        });
-      });
-  } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
-  }
-};
 
 /* for List User */
 exports.list = async (req, res, next) => {
   try {
-    let user_id = req.userId;
-
-    await User.find().exec((err, cat) => {
-      if (err || !cat) {
-        return res.status(400).json({
-          status: "Error",
-          statusCode: 400,
-          message: "No User Found",
-        });
-      }
-
-      res.json({
-        status: "Success",
-        statusCode: 200,
-        message: "Successfully View",
-        Data: cat,
-      });
-    });
+    let user = await userService.getAllUser();
+    return res.status(200).json(successResponse(constants.USER_LIST, user));
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
@@ -73,20 +20,12 @@ exports.list = async (req, res, next) => {
 exports.createUser = async (req, res, next) => {
   try {
     let icon;
-    let valid = new Validator(req.body, {
-      first_name: "required",
-      last_name: "required",
-      email: "email",
-      phone_number: "required|minLength:10",
-      password: "required|minLength:8",
-    });
-    let matched = await valid.check();
-    if (!matched) {
-      return res.status(400).send({
-        status: "Error",
-        statusCode: 400,
-        message: valid.errors,
-      });
+
+    let already_exist1 = await userService.getUserByPhoneNumber(
+      req.body.phone_number
+    );
+    if (already_exist1) {
+      return res.status(400).json(errorResponse(constants.USER_ALREADY_EXIST));
     }
 
     if (req.file !== undefined) {
@@ -96,46 +35,29 @@ exports.createUser = async (req, res, next) => {
 
     //if user entered existing Email
     if (req.body.email !== undefined) {
-      const email_old = await User.findOne({ email: req.body.email });
-      if (email_old) {
-        return res.status(400).json({
-          status: "Error",
-          statusCode: 400,
-          error: "Email Already exists",
-        });
+      let already_exist = await userService.getUserByEmail(req.body.email);
+      if (already_exist) {
+        return res
+          .status(400)
+          .json(errorResponse(constants.USER_ALREADY_EXIST));
       }
     }
 
-    const user = new User(req.body);
-    bcrypt.genSalt(10, (err, salt) => {
+    bcrypt.genSalt(10, async (err, salt) => {
       if (err) throw err;
-      bcrypt.hash(user.password, salt, (err, hash) => {
+      bcrypt.hash(req.body.password, salt, async (err, hash) => {
         if (err) throw err;
-        user.password = hash;
-        user.save((err, user) => {
-          console.log(err);
-          if (err) {
-            return res.status(400).json({
-              Status: "Error",
-              statusCode: 400,
-              err: "Not able to save User",
-            });
-          }
-          res.json({
-            status: "Success",
-            statusCode: 200,
-            message: "Successfully Created",
-            data: user,
-          });
-        });
+        req.body.password = hash;
+        let created_user = await userService.creatNewUser(req.body);
+        if (created_user) {
+          return res
+            .status(200)
+            .json(successResponse(constants.USER_CREATE_SUCCESS, created_user));
+        }
       });
     });
-  } catch (errors) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: errors.message,
-    });
+  } catch (err) {
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
@@ -143,27 +65,20 @@ exports.createUser = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
   try {
     const set = req.query.id;
+    let icon;
     const Cat = await User.findOne({ _id: set });
     if (!Cat) {
-      return res.status(400).send({
-        status: "Error",
-        statusCode: 400,
-        message: "No User found",
-      });
+      return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
-
-    let icon;
-    let valid = new Validator(req.body, {
-      email: "email",
-      phone_number: "minLength:10",
-    });
-    let matched = await valid.check();
-    if (!matched) {
-      return res.status(400).send({
-        status: "Error",
-        statusCode: 400,
-        message: valid.errors,
-      });
+    if (req.body.phone_number !== undefined) {
+      let already_exist1 = await userService.getUserByPhoneNumber(
+        req.body.phone_number
+      );
+      if (already_exist1) {
+        return res
+          .status(400)
+          .json(errorResponse(constants.USER_ALREADY_EXIST));
+      }
     }
 
     if (req.file !== undefined) {
@@ -171,43 +86,22 @@ exports.updateUser = async (req, res, next) => {
       req.body.image_id = icon;
     }
     if (req.body.email !== undefined) {
-      const email_old = await User.findOne({ email: req.body.email });
-      if (email_old) {
-        return res.status(400).json({
-          status: "Error",
-          statusCode: 400,
-          error: "Email Already exists",
-        });
+      let already_exist = await userService.getUserByEmail(req.body.email);
+      if (already_exist) {
+        return res
+          .status(400)
+          .json(errorResponse(constants.USER_ALREADY_EXIST));
       }
     }
 
-    User.findByIdAndUpdate(
-      { _id: set },
-      { $set: req.body },
-      { new: true, useFindAndModify: false },
-      (err, set) => {
-        if (err) {
-          return res.status(400).json({
-            status: "Error",
-            statusCode: 400,
-            message: "You are not authorized to update this User",
-          });
-        }
-
-        res.json({
-          status: "Success",
-          statusCode: 200,
-          message: "Successfully Updated",
-          data: set,
-        });
-      }
-    );
+    let updated_user = await userService.updateUser(set, req.body);
+    if (updated_user) {
+      return res
+        .status(200)
+        .json(successResponse(constants.USER_UPDATE_SUCCESS, updated_user));
+    }
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
@@ -215,27 +109,13 @@ exports.updateUser = async (req, res, next) => {
 exports.getById = async (req, res, next) => {
   try {
     const cat = await req.query.id;
-    await User.findById(cat).exec((err, cat) => {
-      if (err) {
-        return res.status(400).json({
-          status: "Error",
-          statusCode: 400,
-          message: "No User Found",
-        });
-      }
-      res.json({
-        status: "Success",
-        statusCode: 200,
-        message: "Successfully View",
-        data: cat,
-      });
-    });
+    let user = await userService.getAllUserById(cat);
+    if (!user) {
+      return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
+    }
+    res.status(200).json(successResponse(constants.USER_BY_ID, user));
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
@@ -245,32 +125,44 @@ exports.deleteUser = async (req, res, next) => {
     const cat = await req.query.id;
     const Cat = await User.findOne({ _id: cat });
     if (!Cat) {
-      return res.status(400).send({
-        status: "Error",
-        statusCode: 400,
-        message: "No User found",
-      });
+      return res.status(404).json(errorResponse(constants.USER_NOT_FOUND));
     }
-    await User.findById(cat).remove((err, deletedcat) => {
-      if (err) {
-        return res.status(400).json({
-          status: "Error",
-          statusCode: 400,
-          message: "Failed to delete the User",
-        });
-      }
-      res.json({
-        status: "Success",
-        statusCode: 200,
-        message: "Successfully deleted",
-      });
-    });
+
+    await userService.deleteUser(cat);
+    res.status(200).json(successResponse(constants.USER_DELETE_SUCCESS, Cat));
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
+  }
+};
+
+/* change Password */
+
+exports.changepassword = async (req, res, next) => {
+  try {
+    let user_id = req.userId;
+
+    const user = await User.findOne({ _id: user_id });
+    if (!user) {
+      return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
+    }
+
+    let compare = await bcrypt.compare(req.body.old_password, user.password);
+    if (!compare) {
+      return res.status(400).json(errorResponse(constants.PASSWORD_INCORRECT));
+    }
+
+    let hash_pass = await bcrypt.hashSync(req.body.new_password, 10);
+
+    let update_password = await userService.changePassword(user, hash_pass);
+
+    if (!update_password) {
+      return res
+        .status(400)
+        .json(errorResponse(constants.PASSWORD_NOT_UPDATED_SUCCESSFULLY));
+    }
+    res.status(200).json(successResponse(constants.PASSWORD_UPDATE_SUCCESS));
+  } catch (e) {
+    res.status(500).json(errorResponse(e.message));
   }
 };
 
@@ -278,50 +170,23 @@ exports.deleteUser = async (req, res, next) => {
 exports.listProfile = async (req, res, next) => {
   try {
     let user_id = req.userId;
-    await User.find({ _id: user_id })
-      .select("first_name")
-      .select("last_name")
-      .select("phone_number")
-      .select("image_id")
-      .select("email")
-      .exec((err, cat) => {
-        if (err || !cat) {
-          return res.status(400).json({
-            status: "Error",
-            statusCode: 400,
-            message: "No User Found",
-          });
-        }
-
-        res.json({
-          status: "Success",
-          statusCode: 200,
-          message: "Successfully View",
-          Data: cat,
-        });
-      });
+    let user_data = await userService.getProfile(user_id);
+    if (!user_data) {
+      return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
+    }
+    res.status(200).json(successResponse(constants.USER_BY_ID, user_data));
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
 /* for Update User Profile (only for First_name, last_name And Profile pic*/
 exports.updateUserProfile = async (req, res, next) => {
   try {
-    //const set = req.query.id;
     let user_id = req.userId;
-
     const Cat = await User.findOne({ _id: user_id });
     if (!Cat) {
-      return res.status(400).send({
-        status: "Error",
-        statusCode: 400,
-        message: "No User found",
-      });
+      return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
 
     if (req.file !== undefined) {
@@ -329,162 +194,100 @@ exports.updateUserProfile = async (req, res, next) => {
       req.body.image_id = icon;
     }
 
-    User.findByIdAndUpdate(
-      { _id: user_id },
-      { $set: req.body },
-      { new: true, useFindAndModify: false },
-      (err, set) => {
-        if (err) {
-          return res.status(400).json({
-            status: "Error",
-            statusCode: 400,
-            message: "You are not authorized to update this User",
-          });
-        }
-
-        res.json({
-          status: "Success",
-          statusCode: 200,
-          message: "Successfully Updated",
-          data: set,
-        });
-      }
-    );
+    let updated_user = await userService.updateUser(user_id, req.body);
+    if (updated_user) {
+      return res
+        .status(200)
+        .json(successResponse(constants.USER_UPDATE_SUCCESS, updated_user));
+    }
   } catch (err) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: err.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
+/* Verfy OTP */
 exports.verifyOtp = async (req, res) => {
   try {
     let user_id = req.userId;
     if (req.query.phone_number && req.query.code.length === 6) {
-      twilioClient.verify
-        .services(serviceID)
-        .verificationChecks.create({
-          to: `+${req.query.phone_number}`,
-          code: req.query.code,
-        })
-        .then(async (data) => {
-          if (data.status === "approved") {
-           
-            const user_details = await User.findOne({
-              _id: user_id,
-            });
-
-            await user_details.updateOne({
-              phone_number: req.query.phone_number,
-            });
-
-            res.status(200).send({
-              message: "User is Verified!!",
-              data,
-            });
-          } else {
-            res.status(400).send({
-              message: "Wrong phone number or code :(",
-              phonenumber: req.query.phone_number,
-              data,
-            });
-          }
-        });
+      const data = await userService.verifyOtpPhone(
+        req.query.phone_number,
+        req.query.code
+      );
+      if (data.status === "approved") {
+        const user_details = await User.findOne({ _id: user_id });
+        if (!user_details) {
+          return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
+        }
+        await userService.updatePhone(user_details, req.query.phone_number);
+        return res
+          .status(200)
+          .json(successResponse(constants.OTP_VERIFY_SUCCESS, data));
+      } else {
+        return res
+          .status(400)
+          .json(errorResponse(constants.CHECK_PHONE_OTP, data));
+      }
     } else {
-      res.status(400).send({
-        message: "Wrong phone number or code :(",
-        phonenumber: req.query.phone_number,
-        data,
-      });
+      return res
+        .status(400)
+        .json(errorResponse(constants.CHECK_PHONE_OTP, data));
     }
   } catch (errors) {
-    return res.status(500).json({
-      status: "Error",
-      statusCode: 500,
-      message: errors.message,
-    });
+    res.status(500).json(errorResponse(err.message));
   }
 };
 
+/* Send OTP Email */
 exports.sendOtpEmail = async (req, res) => {
-    try {
-      if (req.body.email) {
-        twilioClient.verify
-          .services(serviceID)
-          .verifications.create({
-            to: req.body.email,
-            channel: "email",
-          })
-          .then((data) => {
-           
-            res.status(200).send({
-              message: "Verification is sent!!",
-              Email: req.body.email,
-              data,
-            });
-          });
-      } else {
-        res.status(400).send({
-          message: "Wrong Email :(",
-          Email: req.body.email,
-        });
+  try {
+    if (req.body.email) {
+      const data = await userService.sendOtpEmail(req.body.email);
+      if (data) {
+        return res
+          .status(200)
+          .json(successResponse(constants.OTP_VERIFY_SUCCESS, data));
       }
-    } catch (errors) {
-      return res.status(500).json({
-        status: "Error",
-        statusCode: 500,
-        message: errors.message,
-      });
+    } else {
+      return res
+        .status(400)
+        .json(successResponse(constants.OTP_NOT_SEND_SUCCESSFUL, data));
     }
-  };
+  } catch (errors) {
+    res.status(500).json(errorResponse(err.message));
+  }
+};
 
-  exports.verifyOtpEmail = async (req, res) => {
-    try {
-      let user_id = req.userId;
-      if (req.body.email && req.body.code.length === 6) {
-        twilioClient.verify
-          .services(serviceID)
-          .verificationChecks.create({
-            to: req.body.email,
-            code: req.body.code,
-          })
-          .then(async (data) => {
-            if (data.status === "approved") {
-             
-              const user_details = await User.findOne({
-                _id: user_id,
-              });
-  
-              await user_details.updateOne({
-                email: req.body.email,
-              });
-  
-              res.status(200).send({
-                message: "User is Verified!!",
-                data,
-              });
-            } else {
-              res.status(400).send({
-                message: "Wrong Email or code :(",
-                Email: req.body.email,
-                data,
-              });
-            }
-          });
-      } else {
-        res.status(400).send({
-          message: "Wrong Email or code :(",
-          Email: req.body.email,
-          data,
+/* Verfy OTP Email */
+exports.verifyOtpEmail = async (req, res) => {
+  try {
+    let user_id = req.userId;
+    if (req.body.email && req.body.code.length === 6) {
+      const data = await userService.verifyOtpEmail(
+        req.body.email,
+        req.body.code
+      );
+
+      if (data.status === "approved") {
+        const user_details = await User.findOne({
+          _id: user_id,
         });
+        await userService.updateEmail(user_details, req.body.email);
+
+        return res
+          .status(200)
+          .json(successResponse(constants.OTP_VERIFY_SUCCESS, data));
+      } else {
+        return res
+          .status(400)
+          .json(successResponse(constants.OTP_NOT_VERIFY_SUCCESSFUL, data));
       }
-    } catch (errors) {
-      return res.status(500).json({
-        status: "Error",
-        statusCode: 500,
-        message: errors.message,
-      });
+    } else {
+      return res
+        .status(400)
+        .json(successResponse(constants.OTP_NOT_VERIFY_SUCCESSFUL, data));
     }
-  };
+  } catch (errors) {
+    res.status(500).json(errorResponse(errors.message));
+  }
+};

@@ -9,9 +9,9 @@ const express = require("express");
 /* routes */
 module.exports = (app) => {
 app.use(express.urlencoded({ extended: false }));
-app.use(`${apiRoute}`, authRouter);
-app.use(`${apiRoute}`, categoryRouter);
-app.use(`${apiRoute}`, keywordRouter);
-app.use(`${apiRoute}`, userRouter);
-app.use(`${apiRoute}`, glimpulseRouter);
+app.use(`${apiRoute}/auth`, authRouter);
+app.use(`${apiRoute}/category`, categoryRouter);
+app.use(`${apiRoute}/keyword`, keywordRouter);
+app.use(`${apiRoute}/user`, userRouter);
+app.use(`${apiRoute}/glimpulse`, glimpulseRouter);
 };
