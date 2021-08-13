@@ -58,4 +58,14 @@ exports.deleteGlimpulse = async (glim_id) => {
     });
     return data;
   };
+
+  /* set glimple of the day */
+exports.setGlimpleOfTheDay = async (glimple_id) => {
+ 
+  await Glimpulse.findOneAndUpdate(
+    { _id: glimple_id },
+    { $set: { glimple_of_day: true } }
+  );
+  return true;
+};
   
