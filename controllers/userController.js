@@ -4,6 +4,7 @@ const constants = require("../common/constant");
 const User = require("../models/users");
 const bcrypt = require("bcryptjs");
 const { accountID, authToken, serviceID } = require("../config");
+const { USER_NOT_VERIFIED } = require("../common/constant");
 const twilioClient = require("twilio")(accountID, authToken);
 
 /* for List User */
@@ -66,8 +67,8 @@ exports.updateUser = async (req, res, next) => {
   try {
     const set = req.query.id;
     let icon;
-    const Cat = await User.findOne({ _id: set });
-    if (!Cat) {
+    let user = await userService.getAllUserById(set);
+    if (!user) {
       return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
     if (req.body.phone_number !== undefined) {
@@ -108,8 +109,8 @@ exports.updateUser = async (req, res, next) => {
 /* for get User By Id */
 exports.getById = async (req, res, next) => {
   try {
-    const cat = await req.query.id;
-    let user = await userService.getAllUserById(cat);
+    const user_id = await req.query.id;
+    let user = await userService.getAllUserById(user_id);
     if (!user) {
       return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
@@ -122,14 +123,14 @@ exports.getById = async (req, res, next) => {
 /* for Delete User */
 exports.deleteUser = async (req, res, next) => {
   try {
-    const cat = await req.query.id;
-    const Cat = await User.findOne({ _id: cat });
-    if (!Cat) {
+    const user_id = await req.query.id;
+    let user = await userService.getAllUserById(user_id);
+    if (!user) {
       return res.status(404).json(errorResponse(constants.USER_NOT_FOUND));
     }
 
-    await userService.deleteUser(cat);
-    res.status(200).json(successResponse(constants.USER_DELETE_SUCCESS, Cat));
+    await userService.deleteUser(user);
+    res.status(200).json(successResponse(constants.USER_DELETE_SUCCESS, user));
   } catch (err) {
     res.status(500).json(errorResponse(err.message));
   }
@@ -140,19 +141,20 @@ exports.deleteUser = async (req, res, next) => {
 exports.changepassword = async (req, res, next) => {
   try {
     let user_id = req.userId;
+    let user = await userService.getAllUserById(user_id);
 
-    const user = await User.findOne({ _id: user_id });
     if (!user) {
       return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
 
-    let compare = await bcrypt.compare(req.body.old_password, user.password);
+    let compare = await bcrypt.compare(req.body.old_password, user[0].password);
+
     if (!compare) {
       return res.status(400).json(errorResponse(constants.PASSWORD_INCORRECT));
     }
 
     let hash_pass = await bcrypt.hashSync(req.body.new_password, 10);
-
+    
     let update_password = await userService.changePassword(user, hash_pass);
 
     if (!update_password) {
@@ -184,8 +186,9 @@ exports.listProfile = async (req, res, next) => {
 exports.updateUserProfile = async (req, res, next) => {
   try {
     let user_id = req.userId;
-    const Cat = await User.findOne({ _id: user_id });
-    if (!Cat) {
+    
+    let user = await userService.getAllUserById(user_id);
+    if (!user) {
       return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
     }
 
@@ -215,7 +218,8 @@ exports.verifyOtp = async (req, res) => {
         req.query.code
       );
       if (data.status === "approved") {
-        const user_details = await User.findOne({ _id: user_id });
+       
+        let user_details = await userService.getAllUserById(user_id);
         if (!user_details) {
           return res.status(400).json(errorResponse(constants.USER_NOT_FOUND));
         }
@@ -269,9 +273,8 @@ exports.verifyOtpEmail = async (req, res) => {
       );
 
       if (data.status === "approved") {
-        const user_details = await User.findOne({
-          _id: user_id,
-        });
+       
+        let user_details = await userService.getAllUserById(user_id);
         await userService.updateEmail(user_details, req.body.email);
 
         return res

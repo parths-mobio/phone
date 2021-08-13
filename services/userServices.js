@@ -46,7 +46,7 @@ exports.getUserByPhoneNumber = async (phone_number) => {
 };
 
 exports.changePassword = async (user, hash_password) => {
-  const update_password = await user.updateOne({
+  const update_password = await user[0].updateOne({
     password: hash_password,
   });
 
@@ -63,7 +63,7 @@ exports.getProfile = async (user_id) => {
 };
 
 exports.updatePhone = async (user, phone) => {
-  const update_phone = await user.updateOne({
+  const update_phone = await user[0].updateOne({
     phone_number: phone,
   });
 
@@ -71,7 +71,7 @@ exports.updatePhone = async (user, phone) => {
 };
 
 exports.updateEmail = async (user, email_id) => {
-  const update_email = await user.updateOne({
+  const update_email = await user[0].updateOne({
     email: email_id,
   });
 
@@ -79,40 +79,40 @@ exports.updateEmail = async (user, email_id) => {
 };
 
 exports.verifyOtpPhone = async (phone_number, code) => {
-  const data1 = await  twilioClient.verify
-  .services(serviceID)
-  .verificationChecks.create({
-    to: `+${phone_number}`,
-    code: code,
-  })
-    .then(async (data) => {
+  const data = await twilioClient.verify
+    .services(serviceID)
+    .verificationChecks.create({
+      to: `+${phone_number}`,
+      code: code,
+    })
+    .then((data) => {
       return data;
     });
-  return data1;
+  return data;
 };
 
 exports.sendOtpEmail = async (email_id) => {
-  const data1 = await twilioClient.verify
+  const data = await twilioClient.verify
     .services(serviceID)
     .verifications.create({
       to: email_id,
       channel: "email",
     })
-    .then(async (data) => {
+    .then((data) => {
       return data;
     });
-  return data1;
+  return data;
 };
 
 exports.verifyOtpEmail = async (email_id, code) => {
-  const data1 = await twilioClient.verify
+  const data = await twilioClient.verify
     .services(serviceID)
     .verificationChecks.create({
       to: email_id,
       code: code,
     })
-    .then(async (data) => {
+    .then((data) => {
       return data;
     });
-  return data1;
+  return data;
 };
