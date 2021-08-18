@@ -7,33 +7,33 @@ const { validate } = require("../middleware/validate.middleware");
 const glimpulseSchema  = require("../common/validations");
 
 router.post(
-  "/glimpulse/create",
+  "/",
   authController.isSignedIn,
   validate(checkSchema(glimpulseSchema.glimpulseSchema)),
   glimpulseController.createGlimpulse
 );
 
 router.put(
-  "/glimpulse/update",
+  "/",
   authController.isSignedIn,
   validate(checkSchema(glimpulseSchema.updateglimpulseSchema)),
   glimpulseController.updateGlimpulse
 );
 
 router.get(
-  "/glimpulse/list",
+  "/",
   authController.isSignedIn,
   glimpulseController.listGlimpulse
 );
 
 router.delete(
-  "/glimpulse/delete",
+  "/",
   authController.isSignedIn,
   glimpulseController.deleteGlimpulse
 );
 
 router.get(
-  "/glimpulse/getGlimpulseById",
+  "/getGlimpulseById",
   authController.isSignedIn,
   glimpulseController.getById
 );

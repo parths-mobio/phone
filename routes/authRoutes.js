@@ -2,17 +2,22 @@ const express = require("express");
 const router = express.Router();
 const { check } = require("express-validator");
 const authController = require("../controllers/authController");
+const { checkSchema } = require("express-validator");
+const { validate } = require("../middleware/validate.middleware");
+const userSchema  = require("../common/validations");
 
 router.post(
-  "/auth/signup",
+  "/signup",
+  validate(checkSchema(userSchema.signUp)),
   authController.signup,
   authController.sendOtp
 );
 
-router.get("/auth/verifyotp", authController.verifyOtp);
+router.get("/verifyotp", authController.verifyOtp);
 
 router.post(
-  "/auth/signin",
+  "/signin",
+  validate(checkSchema(userSchema.signIn)),
   authController.signin
 );
 

@@ -37,4 +37,35 @@ exports.updateGlimpulse = async (glim_id, glim) => {
 exports.deleteGlimpulse = async (glim_id) => {
     return Glimpulse.deleteOne({ _id: glim_id });
   };
+
+  exports.getAllGlimpulseByDate = async (start_date,end_date) => {
+  
+    const data =  await Glimpulse.find({
+      $or: [
+        {
+          start_date: {
+            $gte: start_date,
+            $lte: end_date,
+          },
+        },
+        {
+          end_date: {
+            $gte: new Date(start_date),
+            $lte: new Date(end_date),
+          },
+        },
+      ],
+    });
+    return data;
+  };
+
+  /* set glimple of the day */
+exports.setGlimpleOfTheDay = async (glimple_id) => {
+ 
+  await Glimpulse.findOneAndUpdate(
+    { _id: glimple_id },
+    { $set: { glimple_of_day: true } }
+  );
+  return true;
+};
   
