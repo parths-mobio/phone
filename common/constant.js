@@ -53,7 +53,9 @@ module.exports = {
   GET_PROFILE: "User Profile",
   USER_ID_CANT_BE_EMPTY: "User ids can't be empty",
   UPDATE_PROFILE: "Profile updated successfully",
-  
+
+  NO_TOKEN_PROVIDED:"No Token Provided",
+  INVALID_TOKEN:"Invalid Token",  
     /* 500 server error */
     SOMETHING_WENT_WRONG: "Something went wrong",
   };

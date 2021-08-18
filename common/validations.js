@@ -115,7 +115,35 @@ exports.userSchema = {
 exports.changepasswordSchema = {
   old_password: this.validatePassword(),
   new_password: this.validatePassword(),
-    
 };
 
+exports.signIn = {
+  phone_number: {
+    notEmpty: true,
+    errorMessage: "Phone_number cannot be empty",
+    isLength: {
+      options: { min: 10, max: 15 },
+    },
+  },
+  password: this.validatePassword(),
+};
 
+exports.signUp = {
+  first_name: {
+    notEmpty: true,
+    errorMessage: "First Name cannot be empty",
+  },
+  last_name: {
+    notEmpty: true,
+    errorMessage: "Last Name cannot be empty",
+  },
+
+  phone_number: {
+    notEmpty: true,
+    errorMessage: "Phone_number cannot be empty",
+    isLength: {
+      options: { min: 10, max: 15 },
+    },
+  },
+  password: this.validatePassword(),
+};
